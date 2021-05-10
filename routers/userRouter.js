@@ -18,7 +18,6 @@ router.post("/", async (req, res) => {
       const uid = decodedToken.uid;
       console.log("Fetched UID: ", uid);
       console.log("Fetched email: ", user.user.email);
-
       const Users = db.collection("users");
       Users.doc(`${uid}`).set({
         email: user.user.email,
