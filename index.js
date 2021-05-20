@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+
 const bodyParser = require("body-parser");
 // require("firebase/auth");
 // require("firebase/firestore");
@@ -28,12 +29,14 @@ app.use(
     extended: true,
   })
 );
+
 app.use(cookieParser());
 
 app.use(
   cors({
     origin: ["http://localhost:3000"],
-    // credentials: true,
+    credentials: true,
   })
 );
+
 app.use("/auth", require("./routers/userRouter"));
