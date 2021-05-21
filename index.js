@@ -40,3 +40,4 @@ app.use(
 );
 
 app.use("/auth", require("./routers/userRouter"));
+app.use("/posts", require("./routers/postRouter"));
