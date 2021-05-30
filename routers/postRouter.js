@@ -18,21 +18,23 @@ router.post("/", auth, async (req, res) => {
 
   try {
     console.log("---createPost Initiated---");
-    //adds post to Post collection in firestore
-    const newPostRes = await Posts.add({
+    let newPostData = {
       title,
       caption,
       content,
       creator: uid,
-    });
-    console.log("---newPostRes---", newPostRes);
-
+      created: admin.firestore.Timestamp.now().seconds,
+    };
+    //adds post to Post collection in firestore
+    const newPostRes = await Posts.add(newPostData);
+    console.log("---newPostRes---", newPostRes.id);
+    newPostData.id = newPostRes.id;
     //adds post id to users posts array
     const unionRes = await Users.doc(uid).update({
       posts: admin.firestore.FieldValue.arrayUnion(newPostRes.id),
     });
     console.log("---Successfully added to user posts array---", unionRes);
-    res.json("---Successfully added to user posts array---");
+    res.json(newPostData);
   } catch (err) {
     console.log("err", err);
   }
@@ -68,24 +70,15 @@ router.get("/user", auth, async (req, res) => {
 
   try {
     console.log("---getUsersPosts Initiated---");
-    const usersPosts = Posts.where("creator", "==", `${uid}`);
-    usersPosts.onSnapshot(
-      (querySnapshot) => {
-        let posts = [];
-        console.log(`querySnapshot log:  `, querySnapshot);
-        querySnapshot.forEach((doc) => {
-          console.log("snapshot doc", doc.data);
-          const post = doc.data;
-          posts.push(post);
-        });
+    const usersPosts = await Posts.where("creator", "==", `${uid}`).get();
+    // console.log(`usersPosts: `);
+    let userObject = [];
+    usersPosts.forEach((doc) => {
+      console.log(doc);
+      userObject.push(doc.data());
+    });
 
-        console.log(`Received query snapshot of size ${querySnapshot.size}`);
-      },
-      (err) => {
-        console.log(`Encountered error: ${err}`);
-      }
-    );
-    res.json(posts);
+    res.json(userObject);
   } catch (err) {
     console.log("err", err);
   }
