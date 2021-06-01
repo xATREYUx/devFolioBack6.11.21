@@ -3,12 +3,12 @@ const router = require("express").Router();
 const auth = require("../middleware/auth");
 
 const admin = require("firebase-admin");
-const firebase = require("firebase");
 const db = admin.firestore();
 
 const Posts = db.collection("posts");
 const Users = db.collection("users");
 
+// new post
 router.post("/", auth, async (req, res) => {
   console.log("req.body", req.body);
   console.log("req.user", req.user);
@@ -18,7 +18,7 @@ router.post("/", auth, async (req, res) => {
 
   try {
     console.log("---createPost Initiated---");
-    let newPostData = {
+    var newPostData = {
       title,
       caption,
       content,
@@ -40,6 +40,7 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+//get all posts
 router.get("/", auth, async (req, res) => {
   console.log("req.body", req.body);
   console.log("req.user", req.user);
@@ -61,24 +62,29 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+//get all users posts
 router.get("/user", auth, async (req, res) => {
   console.log("req.body", req.body);
   console.log("req.user", req.user);
 
-  const { title, caption, content } = req.body;
   const { uid } = req.user;
 
   try {
     console.log("---getUsersPosts Initiated---");
-    const usersPosts = await Posts.where("creator", "==", `${uid}`).get();
-    // console.log(`usersPosts: `);
-    let userObject = [];
-    usersPosts.forEach((doc) => {
-      console.log(doc);
-      userObject.push(doc.data());
-    });
-
-    res.json(userObject);
+    await Posts.where("creator", "==", `${uid}`)
+      .get()
+      .then((usersPosts) => {
+        var userObject = [];
+        usersPosts.forEach((doc) => {
+          var postData = doc.data();
+          postData.id = doc.id;
+          userObject.push(postData);
+          console.log("usersPost log", doc.data());
+        });
+        console.log(`all usersPosts: `, userObject);
+        res.json(userObject);
+      })
+      .catch();
   } catch (err) {
     console.log("err", err);
   }

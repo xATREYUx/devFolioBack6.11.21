@@ -2,9 +2,8 @@ const router = require("express").Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-var admin = require("firebase-admin");
-const firebase = require("firebase");
-var db = admin.firestore();
+const admin = require("firebase-admin");
+const db = admin.firestore();
 
 router.post("/", async (req, res) => {
   console.log("---User signup initiated---");
@@ -48,6 +47,8 @@ router.post("/", async (req, res) => {
 });
 
 router.get("/logout", (req, res) => {
+  console.log("Logout Initiated");
+
   try {
     res
       .cookie("token", "", {

@@ -4,8 +4,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 const bodyParser = require("body-parser");
-// require("firebase/auth");
-// require("firebase/firestore");
+
 const admin = require("firebase-admin");
 var serviceAccount = require("./creds.json");
 
