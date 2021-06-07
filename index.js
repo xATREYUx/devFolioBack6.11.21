@@ -4,6 +4,8 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 const bodyParser = require("body-parser");
+const fs = require("fs");
+const path = require("path");
 
 const admin = require("firebase-admin");
 var serviceAccount = require("./creds.json");
@@ -13,6 +15,7 @@ dotenv.config();
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://devport-express-backend.firebaseio.com",
+  storageBucket: "devport-express-backend.appspot.com",
 });
 
 const app = express();

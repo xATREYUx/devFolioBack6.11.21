@@ -1,44 +1,141 @@
 const router = require("express").Router();
+const { check } = require("express-validator");
 
 const auth = require("../middleware/auth");
 
 const admin = require("firebase-admin");
+const bucket = admin.storage().bucket();
 const db = admin.firestore();
+
+const uploader = require("../middleware/file-upload");
+const { v4: uuidv4 } = require("uuid");
 
 const Posts = db.collection("posts");
 const Users = db.collection("users");
 
 // new post
-router.post("/", auth, async (req, res) => {
-  console.log("req.body", req.body);
-  console.log("req.user", req.user);
+router.post(
+  "/",
+  auth,
+  uploader.fields([
+    { name: "cardImage", maxCount: 1 },
+    { name: "postImageOne", maxCount: 1 },
+    { name: "postImageTwo", maxCount: 1 },
+  ]),
+  [
+    check("title").not().isEmpty(),
+    check("caption").not().isEmpty(),
+    check("content").not().isEmpty(),
+  ],
+  async (req, res, next) => {
+    console.log("createPost req.body", req.body);
+    console.log("createPost req.user", req.user);
+    console.log("createPost req.files", req.files);
+    const { title, caption, content } = req.body;
+    const { uid } = req.user;
 
-  const { title, caption, content } = req.body;
-  const { uid } = req.user;
+    //add images to storage
 
-  try {
-    console.log("---createPost Initiated---");
-    var newPostData = {
-      title,
-      caption,
-      content,
-      creator: uid,
-      created: admin.firestore.Timestamp.now().seconds,
+    const blobWriterAsync = (value, key) =>
+      new Promise((resolve, reject) => {
+        let token = uuidv4();
+        const fileName = value[0].originalname + "-" + Date.now();
+        const blob = bucket.file(fileName);
+
+        const blobWriter = blob.createWriteStream({
+          metadata: {
+            contentType: value[0].mimetype,
+            metadata: {
+              firebaseStorageDownloadTokens: token,
+            },
+          },
+        });
+
+        blobWriter.on("error", (err) => reject(err));
+        blobWriter.on("finish", () => {
+          console.log("---Assemblying Public URL & Metadata---", blob.name);
+
+          const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURI(blob.name)}?alt=media`;
+          resolve({ [key]: publicUrl });
+        });
+        blobWriter.end(value[0].buffer);
+      });
+
+    const imagesWriteFunction = async () => {
+      var urls = [];
+
+      for (const [key, value] of Object.entries(req.files)) {
+        try {
+          const url = await blobWriterAsync(value, key);
+          urls.push(url);
+        } catch (err) {
+          console.log("blob write error", err);
+        }
+      }
+      return urls;
     };
-    //adds post to Post collection in firestore
-    const newPostRes = await Posts.add(newPostData);
-    console.log("---newPostRes---", newPostRes.id);
-    newPostData.id = newPostRes.id;
-    //adds post id to users posts array
-    const unionRes = await Users.doc(uid).update({
-      posts: admin.firestore.FieldValue.arrayUnion(newPostRes.id),
-    });
-    console.log("---Successfully added to user posts array---", unionRes);
-    res.json(newPostData);
-  } catch (err) {
-    console.log("err", err);
+
+    await imagesWriteFunction()
+      .then(async (urls) => {
+        console.log("imagesWriteFunction urls log", urls);
+
+        // console.log("iamgeUrls log", iamgeUrls);
+        //adds post to Post collection in firestore
+        var newPostData = {
+          title,
+          caption,
+          content,
+          creator: uid,
+          created: admin.firestore.Timestamp.now().seconds,
+          postURLs: urls,
+        };
+
+        const newPostRes = await Posts.add(newPostData);
+        console.log("---newPostRes---", newPostRes.id);
+        newPostData.id = newPostRes.id;
+
+        //adds post id to users posts array
+        const unionRes = await Users.doc(uid).update({
+          posts: admin.firestore.FieldValue.arrayUnion(newPostRes.id),
+        });
+        console.log("---Successfully added to user posts array---", unionRes);
+        res.status(200).send(newPostData);
+      })
+      .catch((err) => console.log("createPost error", err));
   }
-});
+);
+// router.post("/", auth, async (req, res) => {
+//   console.log("req.body", req.body);
+//   console.log("req.user", req.user);
+
+//   const { title, caption, content } = req.body;
+//   const { uid } = req.user;
+
+//   try {
+//     console.log("---createPost Initiated---");
+//     var newPostData = {
+//       title,
+//       caption,
+//       content,
+//       creator: uid,
+//       created: admin.firestore.Timestamp.now().seconds,
+//     };
+//     //adds post to Post collection in firestore
+//     const newPostRes = await Posts.add(newPostData);
+//     console.log("---newPostRes---", newPostRes.id);
+//     newPostData.id = newPostRes.id;
+//     //adds post id to users posts array
+//     const unionRes = await Users.doc(uid).update({
+//       posts: admin.firestore.FieldValue.arrayUnion(newPostRes.id),
+//     });
+//     console.log("---Successfully added to user posts array---", unionRes);
+//     res.json(newPostData);
+//   } catch (err) {
+//     console.log("err", err);
+//   }
+// });
 
 //get all posts
 router.get("/", auth, async (req, res) => {
@@ -53,7 +150,10 @@ router.get("/", auth, async (req, res) => {
     let allPosts = [];
     const postsGetRes = await Posts.get();
     postsGetRes.docs.forEach((doc) => {
-      const post = doc.data();
+      console.log("get all docs doc.data()", doc.data());
+
+      var post = doc.data();
+      post.id = doc.id;
       allPosts.push(post);
     });
     res.json(allPosts);
