@@ -25,12 +25,15 @@ app.listen(PORT, () => {
   console.log(`Server started on port: ${PORT}`);
 });
 
+// app.use(express.json());
+// app.use(
+//   express.urlencoded({
+//     extended: true,
+//   })
+// );
+
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(
-  express.urlencoded({
-    extended: true,
-  })
-);
 
 app.use(cookieParser());
 
@@ -43,3 +46,4 @@ app.use(
 
 app.use("/auth", require("./routers/userRouter"));
 app.use("/posts", require("./routers/postRouter"));
+app.use("/contacts", require("./routers/contactRouter"));
